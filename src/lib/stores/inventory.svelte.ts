@@ -30,6 +30,14 @@ class InventoryStore {
     return this.records.filter(r => r.productId === productId);
   }
 
+  getByOrderId(orderId: number, orderType?: 'purchase' | 'sales' | 'purchase-return' | 'stocktake'): InventoryRecord[] {
+    let result = this.records.filter(r => r.orderId === orderId);
+    if (orderType) {
+      result = result.filter(r => r.orderType === orderType);
+    }
+    return result;
+  }
+
   search(query: string, type?: InventoryRecordType): InventoryRecord[] {
     let result = this.records;
     if (type) result = result.filter(r => r.type === type);
