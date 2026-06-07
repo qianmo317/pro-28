@@ -86,13 +86,26 @@ export interface InventoryRecord {
   type: InventoryRecordType;
   quantity: number;
   orderId: number;
-  orderType: 'purchase' | 'sales';
+  orderType: 'purchase' | 'sales' | 'purchase-return';
   createdAt: string;
 }
 
 export type PaymentType = 'receivable' | 'payable';
 
 export type PaymentStatus = 'pending' | 'partial' | 'completed';
+
+export type PaymentAdjustmentType = 'return';
+
+export interface PaymentAdjustment {
+  id: number;
+  paymentId: number;
+  type: PaymentAdjustmentType;
+  amount: number;
+  reason: string;
+  relatedId: number;
+  relatedName: string;
+  createdAt: string;
+}
 
 export interface Payment {
   id: number;
@@ -106,6 +119,35 @@ export interface Payment {
   method: string;
   createdAt: string;
   paidAt: string | null;
+  adjustments: PaymentAdjustment[];
+}
+
+export type ReturnStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+
+export interface PurchaseReturnItem {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  amount: number;
+}
+
+export interface PurchaseReturn {
+  id: number;
+  returnNo: string;
+  purchaseOrderId: number;
+  purchaseOrderNo: string;
+  supplierId: number;
+  supplierName: string;
+  status: ReturnStatus;
+  items: PurchaseReturnItem[];
+  totalAmount: number;
+  reason: string;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt: string | null;
+  completedAt: string | null;
 }
 
 export interface ToastMessage {

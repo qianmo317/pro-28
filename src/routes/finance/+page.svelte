@@ -5,8 +5,8 @@
   import StatCard from '$lib/components/StatCard.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
-  import { formatCurrency, formatDate } from '$lib/utils/format';
-  import { DollarSign, TrendingDown, TrendingUp, Clock, CreditCard } from 'lucide-svelte';
+  import { formatCurrency, formatDate, formatDateTime } from '$lib/utils/format';
+  import { DollarSign, TrendingDown, TrendingUp, Clock, CreditCard, ChevronDown, ChevronUp, RefreshCw } from 'lucide-svelte';
   import type { Payment } from '$lib/types';
 
   let activeTab = $state<'payable' | 'receivable'>('payable');
@@ -15,6 +15,7 @@
   let payAmount = $state(0);
   let payMethod = $state('银行转账');
   let currentPage = $state(1);
+  let expandedRows = $state<Set<number>>(new Set());
   const PAGE_SIZE = 10;
 
   const totalPayable = $derived(financeStore.totalPayable);
@@ -24,6 +25,16 @@
 
   const currentList = $derived(activeTab === 'payable' ? financeStore.payables : financeStore.receivables);
   const pagedList = $derived(currentList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE));
+
+  function toggleRow(paymentId: number) {
+    const newSet = new Set(expandedRows);
+    if (newSet.has(paymentId)) {
+      newSet.delete(paymentId);
+    } else {
+      newSet.add(paymentId);
+    }
+    expandedRows = newSet;
+  }
 
   function openPayModal(payment: Payment) {
     selectedPayment = payment;
@@ -40,6 +51,11 @@
     financeStore.makePayment(selectedPayment.id, payAmount, payMethod);
     toastStore.success(activeTab === 'payable' ? '付款成功' : '收款成功');
     showPayModal = false;
+  }
+
+  function getOriginalAmount(payment: Payment): number {
+    const adjustmentTotal = (payment.adjustments || []).reduce((sum, adj) => sum + adj.amount, 0);
+    return payment.totalAmount + adjustmentTotal;
   }
 </script>
 
@@ -85,9 +101,12 @@
       <table class="w-full">
         <thead>
           <tr class="bg-slate-50 border-b border-slate-200">
+            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3 w-10"></th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">关联单号</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">类型</th>
-            <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">总金额</th>
+            <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">原金额</th>
+            <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">调整</th>
+            <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">现金额</th>
             <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">已付金额</th>
             <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">未付金额</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">状态</th>
@@ -97,9 +116,34 @@
         <tbody class="divide-y divide-slate-100">
           {#each pagedList as payment (payment.id)}
             <tr class="hover:bg-slate-50 transition-colors">
+              <td class="px-2 py-3">
+                {#if payment.adjustments && payment.adjustments.length > 0}
+                  <button onclick={() => toggleRow(payment.id)} class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600">
+                    {#if expandedRows.has(payment.id)}
+                      <ChevronUp class="w-4 h-4" />
+                    {:else}
+                      <ChevronDown class="w-4 h-4" />
+                    {/if}
+                  </button>
+                {/if}
+              </td>
               <td class="px-4 py-3 text-sm font-medium text-brand-600">{payment.relatedName}</td>
               <td class="px-4 py-3 text-sm text-slate-600">{payment.relatedType === 'purchase' ? '采购' : '销售'}</td>
-              <td class="px-4 py-3 text-sm text-right text-slate-800">{formatCurrency(payment.totalAmount)}</td>
+              <td class="px-4 py-3 text-sm text-right text-slate-500">
+                {#if payment.adjustments && payment.adjustments.length > 0}
+                  <span class="line-through">{formatCurrency(getOriginalAmount(payment))}</span>
+                {:else}
+                  {formatCurrency(payment.totalAmount)}
+                {/if}
+              </td>
+              <td class="px-4 py-3 text-sm text-right">
+                {#if payment.adjustments && payment.adjustments.length > 0}
+                  <span class="text-red-600 font-medium">-{formatCurrency(payment.adjustments.reduce((s, a) => s + a.amount, 0))}</span>
+                {:else}
+                  <span class="text-slate-400">-</span>
+                {/if}
+              </td>
+              <td class="px-4 py-3 text-sm text-right font-medium text-slate-800">{formatCurrency(payment.totalAmount)}</td>
               <td class="px-4 py-3 text-sm text-right text-emerald-600">{formatCurrency(payment.paidAmount)}</td>
               <td class="px-4 py-3 text-sm text-right font-medium {payment.totalAmount - payment.paidAmount > 0 ? 'text-red-600' : 'text-slate-400'}">
                 {formatCurrency(payment.totalAmount - payment.paidAmount)}
@@ -114,6 +158,35 @@
                 {/if}
               </td>
             </tr>
+            {#if expandedRows.has(payment.id) && payment.adjustments && payment.adjustments.length > 0}
+              <tr class="bg-slate-50">
+                <td colspan="10" class="px-4 py-0">
+                  <div class="py-3 border-l-2 border-brand-300 pl-4 ml-2">
+                    <p class="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1">
+                      <RefreshCw class="w-3.5 h-3.5" />
+                      账款调整记录
+                    </p>
+                    <div class="space-y-2">
+                      {#each payment.adjustments as adj}
+                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100">
+                          <div class="flex items-center gap-3">
+                            <span class="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">采购退货</span>
+                            <div>
+                              <p class="text-sm font-medium text-slate-700">{adj.relatedName}</p>
+                              <p class="text-xs text-slate-500">{adj.reason}</p>
+                            </div>
+                          </div>
+                          <div class="text-right">
+                            <p class="text-sm font-bold text-red-600">-{formatCurrency(adj.amount)}</p>
+                            <p class="text-xs text-slate-400">{formatDateTime(adj.createdAt)}</p>
+                          </div>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>
@@ -130,6 +203,10 @@
       <div class="space-y-4">
         <div class="p-3 bg-slate-50 rounded-lg">
           <p class="text-sm text-slate-600">关联单号：<span class="font-medium text-slate-800">{selectedPayment.relatedName}</span></p>
+          {#if selectedPayment.adjustments && selectedPayment.adjustments.length > 0}
+            <p class="text-sm text-slate-600 mt-1">原金额：<span class="line-through text-slate-400">{formatCurrency(getOriginalAmount(selectedPayment))}</span></p>
+            <p class="text-sm text-slate-600 mt-0.5">调整后金额：<span class="font-medium text-slate-800">{formatCurrency(selectedPayment.totalAmount)}</span></p>
+          {/if}
           <p class="text-sm text-slate-600 mt-1">未付金额：<span class="font-bold text-red-600">{formatCurrency(selectedPayment.totalAmount - selectedPayment.paidAmount)}</span></p>
         </div>
         <div>

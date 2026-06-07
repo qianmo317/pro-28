@@ -4,7 +4,7 @@ import { generateId } from '$lib/utils/helpers';
 class InventoryStore {
   records = $state<InventoryRecord[]>([]);
 
-  addRecord(productId: number, productName: string, type: InventoryRecordType, quantity: number, orderId: number, orderType: 'purchase' | 'sales') {
+  addRecord(productId: number, productName: string, type: InventoryRecordType, quantity: number, orderId: number, orderType: 'purchase' | 'sales' | 'purchase-return') {
     this.records.unshift({
       id: generateId(),
       productId,

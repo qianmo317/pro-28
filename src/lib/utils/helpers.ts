@@ -19,6 +19,7 @@ export function getStatusLabel(status: string): string {
     approved: '已审核',
     completed: '已完成',
     cancelled: '已取消',
+    rejected: '已拒绝',
     active: '启用',
     inactive: '停用'
   };
@@ -31,6 +32,7 @@ export function getStatusColor(status: string): string {
     approved: 'bg-blue-100 text-blue-800',
     completed: 'bg-emerald-100 text-emerald-800',
     cancelled: 'bg-red-100 text-red-800',
+    rejected: 'bg-red-100 text-red-800',
     active: 'bg-emerald-100 text-emerald-800',
     inactive: 'bg-gray-100 text-gray-600'
   };

@@ -1,4 +1,4 @@
-import type { Payment, PaymentStatus } from '$lib/types';
+import type { Payment, PaymentStatus, PaymentAdjustment } from '$lib/types';
 import { payments as initialPayments } from '$lib/data/payments';
 import { generateId } from '$lib/utils/helpers';
 
@@ -29,6 +29,10 @@ class FinanceStore {
     return this.receivables.filter(p => p.status !== 'completed');
   }
 
+  getPayableByPurchaseOrderId(purchaseOrderId: number): Payment | undefined {
+    return this.payables.find(p => p.relatedId === purchaseOrderId && p.relatedType === 'purchase');
+  }
+
   addPayable(relatedId: number, relatedName: string, orderNo: string, totalAmount: number) {
     this.items.push({
       id: generateId(),
@@ -41,7 +45,8 @@ class FinanceStore {
       status: 'pending',
       method: '',
       createdAt: new Date().toISOString(),
-      paidAt: null
+      paidAt: null,
+      adjustments: []
     });
   }
 
@@ -57,8 +62,41 @@ class FinanceStore {
       status: 'pending',
       method: '',
       createdAt: new Date().toISOString(),
-      paidAt: null
+      paidAt: null,
+      adjustments: []
     });
+  }
+
+  adjustPayableForReturn(purchaseOrderId: number, returnNo: string, amount: number, reason: string, returnId: number) {
+    const payment = this.getPayableByPurchaseOrderId(purchaseOrderId);
+    if (!payment) return;
+
+    const adjustment: PaymentAdjustment = {
+      id: generateId(),
+      paymentId: payment.id,
+      type: 'return',
+      amount,
+      reason,
+      relatedId: returnId,
+      relatedName: returnNo,
+      createdAt: new Date().toISOString()
+    };
+
+    if (!payment.adjustments) {
+      payment.adjustments = [];
+    }
+    payment.adjustments.push(adjustment);
+
+    payment.totalAmount = Math.max(0, payment.totalAmount - amount);
+
+    if (payment.paidAmount >= payment.totalAmount) {
+      payment.status = 'completed';
+      payment.paidAmount = payment.totalAmount;
+    } else if (payment.paidAmount > 0) {
+      payment.status = 'partial';
+    } else {
+      payment.status = 'pending';
+    }
   }
 
   makePayment(id: number, amount: number, method: string) {

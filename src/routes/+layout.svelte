@@ -17,7 +17,8 @@
     LogOut,
     Menu,
     X,
-    ChevronLeft
+    ChevronLeft,
+    RefreshCw
   } from 'lucide-svelte';
   import type { Snippet } from 'svelte';
 
@@ -33,6 +34,7 @@
   const navItems = [
     { href: '/', label: '仪表盘', icon: LayoutDashboard },
     { href: '/purchase', label: '采购管理', icon: ShoppingCart },
+    { href: '/purchase-returns', label: '采购退货', icon: RefreshCw },
     { href: '/sales', label: '销售管理', icon: TrendingUp },
     { href: '/inventory', label: '库存管理', icon: Package },
     { href: '/suppliers', label: '供应商管理', icon: Truck },
