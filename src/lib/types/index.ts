@@ -150,6 +150,22 @@ export interface PurchaseReturn {
   completedAt: string | null;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface CategoryStats {
+  id: number;
+  name: string;
+  description: string;
+  createdAt: string;
+  productCount: number;
+  totalStockValue: number;
+}
+
 export interface ToastMessage {
   id: number;
   type: 'success' | 'error' | 'warning' | 'info';

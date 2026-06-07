@@ -18,7 +18,8 @@
     Menu,
     X,
     ChevronLeft,
-    RefreshCw
+    RefreshCw,
+    FolderOpen
   } from 'lucide-svelte';
   import type { Snippet } from 'svelte';
 
@@ -37,6 +38,7 @@
     { href: '/purchase-returns', label: '采购退货', icon: RefreshCw },
     { href: '/sales', label: '销售管理', icon: TrendingUp },
     { href: '/inventory', label: '库存管理', icon: Package },
+    { href: '/categories', label: '商品分类', icon: FolderOpen },
     { href: '/suppliers', label: '供应商管理', icon: Truck },
     { href: '/customers', label: '客户管理', icon: Users },
     { href: '/finance', label: '财务对账', icon: FileText },
