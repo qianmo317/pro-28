@@ -6,10 +6,11 @@
     value: string | number;
     icon?: Snippet;
     trend?: { value: number; label: string };
+    subtext?: Snippet;
     color?: 'blue' | 'green' | 'amber' | 'red' | 'purple';
   }
 
-  let { title, value, icon, trend, color = 'blue' }: Props = $props();
+  let { title, value, icon, trend, subtext, color = 'blue' }: Props = $props();
 
   const colorMap = {
     blue: 'bg-blue-50 text-blue-600',
@@ -32,6 +33,9 @@
     <div>
       <p class="text-sm text-slate-500 font-medium">{title}</p>
       <p class="text-2xl font-bold text-slate-800 mt-1">{value}</p>
+      {#if subtext}
+        <div class="mt-1">{@render subtext()}</div>
+      {/if}
       {#if trend}
         <p class="text-xs mt-2 {trend.value >= 0 ? 'text-emerald-600' : 'text-red-600'}">
           {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}

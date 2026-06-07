@@ -9,9 +9,10 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import { formatCurrency, formatDateTime } from '$lib/utils/format';
-  import { Plus, Check, PackageCheck, Eye } from 'lucide-svelte';
+  import { Plus, Check, PackageCheck, Eye, AlertTriangle } from 'lucide-svelte';
   import type { OrderStatus, OrderItem } from '$lib/types';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
 
   let searchQuery = $state('');
   let statusFilter = $state<OrderStatus | ''>('');
@@ -21,6 +22,36 @@
 
   let newSupplierId = $state(0);
   let newItems = $state<Array<{ productId: number; quantity: number; price: number }>>([{ productId: 0, quantity: 1, price: 0 }]);
+
+  let preselectedProductId = $state<number | null>(null);
+  const preselectedProduct = $derived(preselectedProductId ? productStore.getById(preselectedProductId) : null);
+  const preselectedProductIsAlert = $derived(preselectedProduct && preselectedProduct.stock <= preselectedProduct.minStock);
+
+  $effect(() => {
+    const productIdParam = $page.url.searchParams.get('productId');
+    if (productIdParam) {
+      const pid = Number(productIdParam);
+      const product = productStore.getById(pid);
+      if (product) {
+        preselectedProductId = pid;
+        showCreateModal = true;
+        const suggestedQty = Math.max(product.minStock - product.stock + 10, product.minStock * 2);
+        newItems = [{ productId: pid, quantity: suggestedQty, price: product.cost }];
+      }
+    }
+  });
+
+  function closeModal() {
+    showCreateModal = false;
+    preselectedProductId = null;
+    newSupplierId = 0;
+    newItems = [{ productId: 0, quantity: 1, price: 0 }];
+    if ($page.url.searchParams.has('productId')) {
+      const url = new URL($page.url);
+      url.searchParams.delete('productId');
+      history.replaceState({}, '', url.toString());
+    }
+  }
 
   let currentPage = $state(1);
   const PAGE_SIZE = 10;
@@ -102,9 +133,7 @@
       items,
       totalAmount: items.reduce((sum, i) => sum + i.amount, 0)
     });
-    showCreateModal = false;
-    newSupplierId = 0;
-    newItems = [{ productId: 0, quantity: 1, price: 0 }];
+    closeModal();
     toastStore.success('采购单创建成功');
   }
 
@@ -204,10 +233,25 @@
 
 {#if showCreateModal}
   <div class="fixed inset-0 z-50 flex items-start justify-center pt-20">
-    <div class="absolute inset-0 bg-black/50" onclick={() => showCreateModal = false}></div>
+    <div class="absolute inset-0 bg-black/50" onclick={closeModal}></div>
     <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[70vh] overflow-y-auto">
       <div class="p-6">
         <h3 class="text-lg font-semibold text-slate-800 mb-4">新建采购单</h3>
+
+        {#if preselectedProductIsAlert && preselectedProduct}
+          <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+            <AlertTriangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p class="text-sm font-medium text-amber-800">库存预警提醒</p>
+              <p class="text-xs text-amber-600 mt-0.5">
+                商品「{preselectedProduct.name}」当前库存 {preselectedProduct.stock} {preselectedProduct.unit}，
+                已低于最低库存 {preselectedProduct.minStock} {preselectedProduct.unit}，
+                建议及时补货。已为您自动填入建议采购数量。
+              </p>
+            </div>
+          </div>
+        {/if}
+
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">供应商</label>
@@ -283,7 +327,7 @@
               合计：<span class="font-bold text-slate-800">{formatCurrency(newItems.reduce((s, i) => s + i.quantity * i.price, 0))}</span>
             </p>
             <div class="flex gap-3">
-              <button onclick={() => showCreateModal = false} class="px-4 py-2 text-sm text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">取消</button>
+              <button onclick={closeModal} class="px-4 py-2 text-sm text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">取消</button>
               <button onclick={handleCreateOrder} class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors">创建</button>
             </div>
           </div>

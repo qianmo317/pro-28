@@ -18,6 +18,16 @@ export interface Product {
   minStock: number;
   maxStock: number;
   unit: string;
+  belowMinSince: string | null;
+  lastReplenishmentAt: string | null;
+}
+
+export type AlertUrgency = 'normal' | 'warning' | 'critical';
+
+export interface ProductAlert extends Product {
+  daysBelowMin: number;
+  urgency: AlertUrgency;
+  hasRecentReplenishment: boolean;
 }
 
 export interface Supplier {
