@@ -58,7 +58,8 @@ export function getStatusLabel(status: string): string {
     active: '启用',
     inactive: '停用',
     draft: '草稿',
-    confirmed: '已确认'
+    confirmed: '已确认',
+    partial: '部分付款'
   };
   return map[status] || status;
 }

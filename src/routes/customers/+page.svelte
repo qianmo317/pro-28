@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { customerStore } from '$lib/stores/customers.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -6,7 +7,7 @@
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
-  import { Plus, Edit, Trash2, Tag } from 'lucide-svelte';
+  import { Plus, Edit, Trash2, Tag, Eye } from 'lucide-svelte';
   import type { Customer } from '$lib/types';
   import { formatCurrency } from '$lib/utils/format';
   import { getCustomerLevelLabel, getCustomerLevelColor } from '$lib/utils/helpers';
@@ -122,7 +123,9 @@
         <tbody class="divide-y divide-slate-100">
           {#each pagedCustomers as customer (customer.id)}
             <tr class="hover:bg-slate-50 transition-colors">
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">{customer.name}</td>
+              <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                <button onclick={() => goto(`/customers/${customer.id}`)} class="text-brand-600 hover:text-brand-700 hover:underline">{customer.name}</button>
+              </td>
               <td class="px-4 py-3 text-sm">
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: {getCustomerLevelColor(customer.level)}20; color: {getCustomerLevelColor(customer.level)}">
                   <Tag class="w-3 h-3" />
@@ -136,8 +139,9 @@
               <td class="px-4 py-3 text-sm"><StatusBadge status={customer.status} /></td>
               <td class="px-4 py-3 text-sm">
                 <div class="flex items-center gap-2">
-                  <button onclick={() => openEdit(customer)} class="text-brand-600 hover:text-brand-700"><Edit class="w-4 h-4" /></button>
-                  <button onclick={() => { deleteId = customer.id; deleteConfirm = true; }} class="text-red-400 hover:text-red-600"><Trash2 class="w-4 h-4" /></button>
+                  <button onclick={() => goto(`/customers/${customer.id}`)} class="text-slate-400 hover:text-slate-600" title="查看详情"><Eye class="w-4 h-4" /></button>
+                  <button onclick={() => openEdit(customer)} class="text-brand-600 hover:text-brand-700" title="编辑"><Edit class="w-4 h-4" /></button>
+                  <button onclick={() => { deleteId = customer.id; deleteConfirm = true; }} class="text-red-400 hover:text-red-600" title="删除"><Trash2 class="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>
