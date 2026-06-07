@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { supplierStore } from '$lib/stores/suppliers.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -6,7 +7,7 @@
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
-  import { Plus, Edit, Trash2 } from 'lucide-svelte';
+  import { Plus, Edit, Trash2, Eye } from 'lucide-svelte';
   import type { Supplier } from '$lib/types';
 
   let searchQuery = $state('');
@@ -117,15 +118,20 @@
         <tbody class="divide-y divide-slate-100">
           {#each pagedSuppliers as supplier (supplier.id)}
             <tr class="hover:bg-slate-50 transition-colors">
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">{supplier.name}</td>
+              <td class="px-4 py-3 text-sm font-medium text-slate-800">
+                <button onclick={() => goto(`/suppliers/${supplier.id}`)} class="text-brand-600 hover:text-brand-700 hover:underline">
+                  {supplier.name}
+                </button>
+              </td>
               <td class="px-4 py-3 text-sm text-slate-600">{supplier.contact}</td>
               <td class="px-4 py-3 text-sm text-slate-600">{supplier.phone}</td>
               <td class="px-4 py-3 text-sm text-slate-600">{supplier.settlementMethod}</td>
               <td class="px-4 py-3 text-sm"><StatusBadge status={supplier.status} /></td>
               <td class="px-4 py-3 text-sm">
                 <div class="flex items-center gap-2">
-                  <button onclick={() => openEdit(supplier)} class="text-brand-600 hover:text-brand-700"><Edit class="w-4 h-4" /></button>
-                  <button onclick={() => { deleteId = supplier.id; deleteConfirm = true; }} class="text-red-400 hover:text-red-600"><Trash2 class="w-4 h-4" /></button>
+                  <button onclick={() => goto(`/suppliers/${supplier.id}`)} class="text-slate-500 hover:text-brand-600" title="查看详情"><Eye class="w-4 h-4" /></button>
+                  <button onclick={() => openEdit(supplier)} class="text-brand-600 hover:text-brand-700" title="编辑"><Edit class="w-4 h-4" /></button>
+                  <button onclick={() => { deleteId = supplier.id; deleteConfirm = true; }} class="text-red-400 hover:text-red-600" title="删除"><Trash2 class="w-4 h-4" /></button>
                 </div>
               </td>
             </tr>
