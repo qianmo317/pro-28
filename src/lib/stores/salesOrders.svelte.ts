@@ -1,9 +1,10 @@
-import type { SalesOrder, OrderStatus } from '$lib/types';
+import type { SalesOrder, OrderStatus, OrderItem } from '$lib/types';
 import { salesOrders as initialOrders } from '$lib/data/salesOrders';
 import { generateId, generateOrderNo } from '$lib/utils/helpers';
 import { productStore } from './products.svelte';
 import { inventoryStore } from './inventory.svelte';
 import { financeStore } from './finance.svelte';
+import { customerStore } from './customers.svelte';
 
 class SalesOrderStore {
   items = $state<SalesOrder[]>([...initialOrders]);
@@ -12,10 +13,30 @@ class SalesOrderStore {
     return this.items.find(o => o.id === id);
   }
 
-  add(order: Omit<SalesOrder, 'id' | 'orderNo' | 'createdAt' | 'updatedAt'>) {
+  add(order: Omit<SalesOrder, 'id' | 'orderNo' | 'createdAt' | 'updatedAt' | 'customerLevel' | 'discountRate' | 'originalAmount' | 'totalAmount' | 'items'> & {
+    items: Array<Omit<OrderItem, 'id'>>;
+  }) {
+    const discountRate = customerStore.getDiscountRate(order.customerId);
+    const customerLevel = customerStore.getLevel(order.customerId);
+
+    const discountedItems = order.items.map((item, idx) => ({
+      ...item,
+      id: idx + 1,
+      price: Math.round(item.price * discountRate * 100) / 100,
+      amount: Math.round(item.amount * discountRate * 100) / 100
+    }));
+
+    const originalAmount = order.items.reduce((sum, i) => sum + i.amount, 0);
+    const totalAmount = Math.round(originalAmount * discountRate * 100) / 100;
+
     const now = new Date().toISOString();
     const newOrder: SalesOrder = {
       ...order,
+      items: discountedItems,
+      customerLevel,
+      discountRate,
+      originalAmount,
+      totalAmount,
       id: generateId(),
       orderNo: generateOrderNo('SO'),
       createdAt: now,
@@ -38,6 +59,7 @@ class SalesOrderStore {
         productStore.updateStock(item.productId, -item.quantity);
         inventoryStore.addRecord(item.productId, item.productName, 'out', item.quantity, order.id, 'sales');
       });
+      customerStore.addSpent(order.customerId, order.totalAmount);
     }
   }
 

@@ -1,7 +1,42 @@
+import type { CustomerLevel, CustomerLevelConfig } from '$lib/types';
+
 let nextId = 1000;
 
 export function generateId(): number {
   return nextId++;
+}
+
+export const CUSTOMER_LEVEL_CONFIGS: CustomerLevelConfig[] = [
+  { level: 'bronze', name: '青铜', minSpent: 0, maxSpent: 50000, discountRate: 0.95, color: '#cd7f32' },
+  { level: 'silver', name: '白银', minSpent: 50000, maxSpent: 200000, discountRate: 0.90, color: '#c0c0c0' },
+  { level: 'gold', name: '黄金', minSpent: 200000, maxSpent: Infinity, discountRate: 0.85, color: '#ffd700' }
+];
+
+export function getCustomerLevel(totalSpent: number): CustomerLevel {
+  for (let i = CUSTOMER_LEVEL_CONFIGS.length - 1; i >= 0; i--) {
+    const config = CUSTOMER_LEVEL_CONFIGS[i];
+    if (totalSpent >= config.minSpent) {
+      return config.level;
+    }
+  }
+  return 'bronze';
+}
+
+export function getCustomerLevelConfig(level: CustomerLevel): CustomerLevelConfig {
+  return CUSTOMER_LEVEL_CONFIGS.find(c => c.level === level) || CUSTOMER_LEVEL_CONFIGS[0];
+}
+
+export function getDiscountRate(totalSpent: number): number {
+  const level = getCustomerLevel(totalSpent);
+  return getCustomerLevelConfig(level).discountRate;
+}
+
+export function getCustomerLevelLabel(level: CustomerLevel): string {
+  return getCustomerLevelConfig(level).name;
+}
+
+export function getCustomerLevelColor(level: CustomerLevel): string {
+  return getCustomerLevelConfig(level).color;
 }
 
 export function generateOrderNo(prefix: string): string {

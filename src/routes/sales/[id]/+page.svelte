@@ -6,7 +6,8 @@
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { formatCurrency, formatDateTime } from '$lib/utils/format';
-  import { ArrowLeft, Check, Truck, X as XIcon } from 'lucide-svelte';
+  import { getCustomerLevelLabel, getCustomerLevelColor } from '$lib/utils/helpers';
+  import { ArrowLeft, Check, Truck, X as XIcon, Tag } from 'lucide-svelte';
 
   let confirmDialog = $state(false);
   let confirmAction = $state('');
@@ -64,7 +65,22 @@
         <h3 class="text-sm font-semibold text-slate-800 mb-3">订单信息</h3>
         <dl class="space-y-3">
           <div class="flex justify-between"><dt class="text-sm text-slate-500">订单号</dt><dd class="text-sm font-medium text-slate-800">{order.orderNo}</dd></div>
-          <div class="flex justify-between"><dt class="text-sm text-slate-500">客户</dt><dd class="text-sm font-medium text-slate-800">{order.customerName}</dd></div>
+          <div class="flex justify-between items-center">
+            <dt class="text-sm text-slate-500">客户</dt>
+            <dd class="text-sm font-medium text-slate-800">{order.customerName}</dd>
+          </div>
+          <div class="flex justify-between items-center">
+            <dt class="text-sm text-slate-500">客户等级</dt>
+            <dd>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: {getCustomerLevelColor(order.customerLevel)}20; color: {getCustomerLevelColor(order.customerLevel)}">
+                <Tag class="w-3 h-3" />
+                {getCustomerLevelLabel(order.customerLevel)}
+              </span>
+            </dd>
+          </div>
+          <div class="flex justify-between"><dt class="text-sm text-slate-500">折扣率</dt><dd class="text-sm font-medium text-emerald-600">{Math.round(order.discountRate * 100)}折</dd></div>
+          <div class="flex justify-between"><dt class="text-sm text-slate-500">商品原价</dt><dd class="text-sm text-slate-500 line-through">{formatCurrency(order.originalAmount)}</dd></div>
+          <div class="flex justify-between"><dt class="text-sm text-slate-500">优惠金额</dt><dd class="text-sm font-medium text-emerald-600">-{formatCurrency(order.originalAmount - order.totalAmount)}</dd></div>
           <div class="flex justify-between"><dt class="text-sm text-slate-500">创建时间</dt><dd class="text-sm text-slate-800">{formatDateTime(order.createdAt)}</dd></div>
           <div class="flex justify-between"><dt class="text-sm text-slate-500">更新时间</dt><dd class="text-sm text-slate-800">{formatDateTime(order.updatedAt)}</dd></div>
         </dl>

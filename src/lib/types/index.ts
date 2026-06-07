@@ -31,6 +31,17 @@ export interface Supplier {
   settlementMethod: string;
 }
 
+export type CustomerLevel = 'bronze' | 'silver' | 'gold';
+
+export interface CustomerLevelConfig {
+  level: CustomerLevel;
+  name: string;
+  minSpent: number;
+  maxSpent: number;
+  discountRate: number;
+  color: string;
+}
+
 export interface Customer {
   id: number;
   name: string;
@@ -40,6 +51,8 @@ export interface Customer {
   address: string;
   creditLimit: number;
   status: 'active' | 'inactive';
+  totalSpent: number;
+  level: CustomerLevel;
 }
 
 export type OrderStatus = 'pending' | 'approved' | 'completed' | 'cancelled';
@@ -70,6 +83,9 @@ export interface SalesOrder {
   orderNo: string;
   customerId: number;
   customerName: string;
+  customerLevel: CustomerLevel;
+  discountRate: number;
+  originalAmount: number;
   status: OrderStatus;
   items: OrderItem[];
   totalAmount: number;

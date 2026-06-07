@@ -6,9 +6,10 @@
   import StatusBadge from '$lib/components/StatusBadge.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
-  import { Plus, Edit, Trash2 } from 'lucide-svelte';
+  import { Plus, Edit, Trash2, Tag } from 'lucide-svelte';
   import type { Customer } from '$lib/types';
   import { formatCurrency } from '$lib/utils/format';
+  import { getCustomerLevelLabel, getCustomerLevelColor } from '$lib/utils/helpers';
 
   let searchQuery = $state('');
   let showModal = $state(false);
@@ -109,8 +110,10 @@
         <thead>
           <tr class="bg-slate-50 border-b border-slate-200">
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">名称</th>
+            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">等级</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">联系人</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">电话</th>
+            <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">累计消费</th>
             <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">信用额度</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">状态</th>
             <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3 w-24">操作</th>
@@ -120,8 +123,15 @@
           {#each pagedCustomers as customer (customer.id)}
             <tr class="hover:bg-slate-50 transition-colors">
               <td class="px-4 py-3 text-sm font-medium text-slate-800">{customer.name}</td>
+              <td class="px-4 py-3 text-sm">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: {getCustomerLevelColor(customer.level)}20; color: {getCustomerLevelColor(customer.level)}">
+                  <Tag class="w-3 h-3" />
+                  {getCustomerLevelLabel(customer.level)}
+                </span>
+              </td>
               <td class="px-4 py-3 text-sm text-slate-600">{customer.contact}</td>
               <td class="px-4 py-3 text-sm text-slate-600">{customer.phone}</td>
+              <td class="px-4 py-3 text-sm text-right font-medium text-slate-800">{formatCurrency(customer.totalSpent)}</td>
               <td class="px-4 py-3 text-sm text-right font-medium text-slate-800">{formatCurrency(customer.creditLimit)}</td>
               <td class="px-4 py-3 text-sm"><StatusBadge status={customer.status} /></td>
               <td class="px-4 py-3 text-sm">
