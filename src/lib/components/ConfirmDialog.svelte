@@ -1,5 +1,6 @@
 <script lang="ts">
   import { X } from 'lucide-svelte';
+  import type { Snippet } from 'svelte';
 
   interface Props {
     open?: boolean;
@@ -9,9 +10,10 @@
     cancelText?: string;
     onconfirm?: () => void;
     oncancel?: () => void;
+    children?: Snippet;
   }
 
-  let { open = $bindable(false), title = '确认操作', message = '确定要执行此操作吗？', confirmText = '确认', cancelText = '取消', onconfirm, oncancel }: Props = $props();
+  let { open = $bindable(false), title = '确认操作', message = '确定要执行此操作吗？', confirmText = '确认', cancelText = '取消', onconfirm, oncancel, children }: Props = $props();
 
   function handleConfirm() {
     onconfirm?.();
@@ -34,7 +36,11 @@
           <X class="w-5 h-5" />
         </button>
       </div>
-      <p class="text-slate-600 mb-6">{message}</p>
+      {#if children}
+        {@render children()}
+      {:else}
+        <p class="text-slate-600 mb-6">{message}</p>
+      {/if}
       <div class="flex justify-end gap-3">
         <button onclick={handleCancel} class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
           {cancelText}

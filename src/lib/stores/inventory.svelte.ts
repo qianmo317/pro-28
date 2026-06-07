@@ -4,7 +4,15 @@ import { generateId } from '$lib/utils/helpers';
 class InventoryStore {
   records = $state<InventoryRecord[]>([]);
 
-  addRecord(productId: number, productName: string, type: InventoryRecordType, quantity: number, orderId: number, orderType: 'purchase' | 'sales' | 'purchase-return') {
+  addRecord(
+    productId: number,
+    productName: string,
+    type: InventoryRecordType,
+    quantity: number,
+    orderId: number,
+    orderType: 'purchase' | 'sales' | 'purchase-return' | 'stocktake',
+    remark?: string
+  ) {
     this.records.unshift({
       id: generateId(),
       productId,
@@ -13,7 +21,8 @@ class InventoryStore {
       quantity,
       orderId,
       orderType,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      remark
     });
   }
 

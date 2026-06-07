@@ -86,8 +86,44 @@ export interface InventoryRecord {
   type: InventoryRecordType;
   quantity: number;
   orderId: number;
-  orderType: 'purchase' | 'sales' | 'purchase-return';
+  orderType: 'purchase' | 'sales' | 'purchase-return' | 'stocktake';
   createdAt: string;
+  remark?: string;
+}
+
+export interface StockTakeItem {
+  id: number;
+  productId: number;
+  productName: string;
+  sku: string;
+  unit: string;
+  systemStock: number;
+  actualStock: number;
+  difference: number;
+  differenceRatio: number;
+  isHighlighted: boolean;
+}
+
+export type StockTakeStatus = 'draft' | 'confirmed' | 'cancelled';
+
+export interface StockTake {
+  id: number;
+  stockTakeNo: string;
+  title: string;
+  status: StockTakeStatus;
+  items: StockTakeItem[];
+  totalItems: number;
+  totalDifference: number;
+  highlightedCount: number;
+  remark: string;
+  createdAt: string;
+  confirmedAt: string | null;
+  confirmedBy: string | null;
+}
+
+export interface StockTakeThreshold {
+  ratio: number;
+  absolute: number;
 }
 
 export type PaymentType = 'receivable' | 'payable';

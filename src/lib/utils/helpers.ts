@@ -21,7 +21,9 @@ export function getStatusLabel(status: string): string {
     cancelled: '已取消',
     rejected: '已拒绝',
     active: '启用',
-    inactive: '停用'
+    inactive: '停用',
+    draft: '草稿',
+    confirmed: '已确认'
   };
   return map[status] || status;
 }
@@ -34,7 +36,19 @@ export function getStatusColor(status: string): string {
     cancelled: 'bg-red-100 text-red-800',
     rejected: 'bg-red-100 text-red-800',
     active: 'bg-emerald-100 text-emerald-800',
-    inactive: 'bg-gray-100 text-gray-600'
+    inactive: 'bg-gray-100 text-gray-600',
+    draft: 'bg-slate-100 text-slate-800',
+    confirmed: 'bg-purple-100 text-purple-800'
   };
   return map[status] || 'bg-gray-100 text-gray-600';
+}
+
+export function getOrderTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    purchase: '采购',
+    sales: '销售',
+    'purchase-return': '采购退货',
+    stocktake: '盘点调整'
+  };
+  return map[type] || type;
 }

@@ -1,16 +1,23 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { productStore } from '$lib/stores/products.svelte';
   import { inventoryStore } from '$lib/stores/inventory.svelte';
+  import { stockTakeStore } from '$lib/stores/stockTake.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
+  import StatusBadge from '$lib/components/StatusBadge.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { formatCurrency, formatDateTime } from '$lib/utils/format';
-  import { Package, AlertTriangle, ArrowUpDown } from 'lucide-svelte';
+  import { getStatusLabel, getOrderTypeLabel } from '$lib/utils/helpers';
+  import { Package, AlertTriangle, ArrowUpDown, ClipboardList, Plus, Trash2, Eye, CheckCircle } from 'lucide-svelte';
 
-  let activeTab = $state<'list' | 'alerts' | 'records'>('list');
+  let activeTab = $state<'list' | 'alerts' | 'records' | 'stocktake'>('list');
   let searchQuery = $state('');
   let listPage = $state(1);
   let recordsPage = $state(1);
+  let stockTakePage = $state(1);
+  let stockTakeStatusFilter = $state<string>('all');
   const PAGE_SIZE = 10;
 
   const alertProducts = $derived(productStore.getAlertProducts());
@@ -23,14 +30,51 @@
     searchQuery ? inventoryStore.search(searchQuery) : inventoryStore.records
   );
 
+  const filteredStockTakes = $derived(
+    stockTakeStore.search(searchQuery, stockTakeStatusFilter)
+  );
+
   const pagedProducts = $derived(filteredProducts.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE));
   const pagedRecords = $derived(filteredRecords.slice((recordsPage - 1) * PAGE_SIZE, recordsPage * PAGE_SIZE));
+  const pagedStockTakes = $derived(filteredStockTakes.slice((stockTakePage - 1) * PAGE_SIZE, stockTakePage * PAGE_SIZE));
+
+  let showNewDialog = $state(false);
+  let showCancelDialog = $state(false);
+  let newTitle = $state('');
+  let newRemark = $state('');
+  let cancelId = $state<number | null>(null);
 
   const tabs = [
     { value: 'list' as const, label: '库存列表', icon: Package },
     { value: 'alerts' as const, label: '库存预警', icon: AlertTriangle },
-    { value: 'records' as const, label: '出入库记录', icon: ArrowUpDown }
+    { value: 'records' as const, label: '出入库记录', icon: ArrowUpDown },
+    { value: 'stocktake' as const, label: '库存盘点', icon: ClipboardList }
   ];
+
+  function handleCreate() {
+    if (!newTitle.trim()) return;
+    const stockTake = stockTakeStore.createStockTake(newTitle.trim(), newRemark.trim());
+    goto(`/inventory/stocktake/${stockTake.id}`);
+  }
+
+  function openCancel(id: number) {
+    cancelId = id;
+    showCancelDialog = true;
+  }
+
+  function handleCancel() {
+    if (cancelId !== null) {
+      stockTakeStore.cancelStockTake(cancelId);
+      cancelId = null;
+    }
+  }
+
+  $effect(() => {
+    if (activeTab === 'stocktake') {
+      newTitle = '';
+      newRemark = '';
+    }
+  });
 </script>
 
 <svelte:head>
@@ -127,7 +171,7 @@
         {/each}
       </div>
     {/if}
-  {:else}
+  {:else if activeTab === 'records'}
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {#if filteredRecords.length === 0}
         <div class="p-12 text-center">
@@ -142,7 +186,8 @@
                 <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">类型</th>
                 <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">商品</th>
                 <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">数量</th>
-                <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">关联订单</th>
+                <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">业务类型</th>
+                <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">备注</th>
                 <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">时间</th>
               </tr>
             </thead>
@@ -158,7 +203,10 @@
                   <td class="px-4 py-3 text-sm text-right font-medium {record.type === 'in' ? 'text-emerald-600' : 'text-red-600'}">
                     {record.type === 'in' ? '+' : '-'}{record.quantity}
                   </td>
-                  <td class="px-4 py-3 text-sm text-slate-600">{record.orderType === 'purchase' ? '采购' : '销售'}单 #{record.orderId}</td>
+                  <td class="px-4 py-3 text-sm text-slate-600">
+                    {getOrderTypeLabel(record.orderType)} #{record.orderId}
+                  </td>
+                  <td class="px-4 py-3 text-sm text-slate-500 max-w-xs truncate" title={record.remark}>{record.remark || '-'}</td>
                   <td class="px-4 py-3 text-sm text-slate-500">{formatDateTime(record.createdAt)}</td>
                 </tr>
               {/each}
@@ -168,5 +216,144 @@
         <Pagination bind:page={recordsPage} total={filteredRecords.length} pageSize={PAGE_SIZE} />
       {/if}
     </div>
+  {:else}
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div class="flex gap-2">
+          <select
+            bind:value={stockTakeStatusFilter}
+            class="px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          >
+            <option value="all">全部状态</option>
+            <option value="draft">草稿</option>
+            <option value="confirmed">已确认</option>
+            <option value="cancelled">已取消</option>
+          </select>
+        </div>
+        <button
+          onclick={() => { showNewDialog = true; newTitle = ''; newRemark = ''; }}
+          class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+        >
+          <Plus class="w-4 h-4" />
+          新建盘点
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {#if filteredStockTakes.length === 0}
+          <div class="p-12 text-center">
+            <ClipboardList class="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p class="text-slate-400">暂无盘点记录</p>
+            <button
+              onclick={() => { showNewDialog = true; newTitle = ''; newRemark = ''; }}
+              class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors"
+            >
+              <Plus class="w-4 h-4" />
+              创建第一个盘点单
+            </button>
+          </div>
+        {:else}
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                  <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">盘点单号</th>
+                  <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">标题</th>
+                  <th class="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">商品数</th>
+                  <th class="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">差异总数</th>
+                  <th class="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">需复核</th>
+                  <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">状态</th>
+                  <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">创建时间</th>
+                  <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {#each pagedStockTakes as stockTake (stockTake.id)}
+                  <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 text-sm font-mono text-slate-600">{stockTake.stockTakeNo}</td>
+                    <td class="px-4 py-3 text-sm font-medium text-slate-800">{stockTake.title}</td>
+                    <td class="px-4 py-3 text-sm text-center text-slate-600">{stockTake.totalItems}</td>
+                    <td class="px-4 py-3 text-sm text-center font-medium {stockTake.totalDifference > 0 ? 'text-emerald-600' : stockTake.totalDifference < 0 ? 'text-red-600' : 'text-slate-600'}">
+                      {stockTake.totalDifference > 0 ? '+' : ''}{stockTake.totalDifference}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-center">
+                      {#if stockTake.highlightedCount > 0}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          {stockTake.highlightedCount}
+                        </span>
+                      {:else}
+                        <span class="text-slate-400">0</span>
+                      {/if}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                      <StatusBadge status={stockTake.status} />
+                    </td>
+                    <td class="px-4 py-3 text-sm text-slate-500">{formatDateTime(stockTake.createdAt)}</td>
+                    <td class="px-4 py-3 text-sm text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button
+                          onclick={() => goto(`/inventory/stocktake/${stockTake.id}`)}
+                          class="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                          title="查看详情"
+                        >
+                          <Eye class="w-4 h-4" />
+                        </button>
+                        {#if stockTake.status === 'draft'}
+                          <button
+                            onclick={() => openCancel(stockTake.id)}
+                            class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="取消盘点"
+                          >
+                            <Trash2 class="w-4 h-4" />
+                          </button>
+                        {/if}
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          <Pagination bind:page={stockTakePage} total={filteredStockTakes.length} pageSize={PAGE_SIZE} />
+        {/if}
+      </div>
+    </div>
   {/if}
 </div>
+
+<ConfirmDialog
+  bind:open={showNewDialog}
+  title="新建盘点单"
+  message=""
+  confirmText="创建并继续"
+  onconfirm={handleCreate}
+>
+  <div class="space-y-4 mb-4">
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">盘点标题 *</label>
+      <input
+        bind:value={newTitle}
+        type="text"
+        placeholder="例如：2024年6月月末盘点"
+        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+      />
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-1">备注</label>
+      <textarea
+        bind:value={newRemark}
+        placeholder="可选：填写盘点说明..."
+        rows={3}
+        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+      />
+    </div>
+  </div>
+</ConfirmDialog>
+
+<ConfirmDialog
+  bind:open={showCancelDialog}
+  title="取消盘点单"
+  message="确定要取消此盘点单吗？取消后将无法继续编辑。"
+  confirmText="确认取消"
+  onconfirm={handleCancel}
+/>
