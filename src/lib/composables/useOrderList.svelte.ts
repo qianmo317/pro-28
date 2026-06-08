@@ -2,19 +2,40 @@ import type { OrderBase, OrderStore, OrderListConfig, OrderStatus } from '$lib/t
 import { toastStore } from '$lib/stores/toast.svelte';
 import { goto } from '$app/navigation';
 
+export interface OrderListState<T extends OrderBase> {
+  searchQuery: string;
+  statusFilter: OrderStatus | '';
+  currentPage: number;
+  readonly PAGE_SIZE: number;
+  readonly showCreateModal: boolean;
+  confirmDialog: boolean;
+  readonly confirmAction: { id: number; action: 'approve' | 'complete' } | null;
+  readonly statusTabs: Array<{ value: string; label: string }>;
+  readonly filteredOrders: T[];
+  readonly pagedOrders: T[];
+  handleStatusTabClick: (value: OrderStatus | '') => void;
+  handleSearchChange: () => void;
+  handleApprove: (id: number) => void;
+  handleComplete: (id: number) => void;
+  handleConfirm: () => void;
+  handleCancel: () => void;
+  handleViewDetail: (id: number) => void;
+  openCreateModal: () => void;
+  closeCreateModal: () => void;
+}
+
 export function useOrderList<T extends OrderBase>(
   store: OrderStore<T>,
   config: OrderListConfig<T>
-) {
+): OrderListState<T> {
   let searchQuery = $state('');
   let statusFilter = $state<OrderStatus | ''>('');
   let currentPage = $state(1);
-  const PAGE_SIZE = 10;
-
   let showCreateModal = $state(false);
   let confirmDialog = $state(false);
   let confirmAction = $state<{ id: number; action: 'approve' | 'complete' } | null>(null);
 
+  const PAGE_SIZE = 10;
   const statusTabs = [
     { value: '', label: '全部' },
     { value: 'pending', label: '待审核' },
@@ -79,16 +100,20 @@ export function useOrderList<T extends OrderBase>(
   }
 
   return {
-    searchQuery,
-    statusFilter,
-    currentPage,
-    PAGE_SIZE,
-    showCreateModal,
-    confirmDialog,
-    confirmAction,
-    statusTabs,
-    filteredOrders,
-    pagedOrders,
+    get searchQuery() { return searchQuery; },
+    set searchQuery(v) { searchQuery = v; },
+    get statusFilter() { return statusFilter; },
+    set statusFilter(v) { statusFilter = v; },
+    get currentPage() { return currentPage; },
+    set currentPage(v) { currentPage = v; },
+    get PAGE_SIZE() { return PAGE_SIZE; },
+    get showCreateModal() { return showCreateModal; },
+    get confirmDialog() { return confirmDialog; },
+    set confirmDialog(v) { confirmDialog = v; },
+    get confirmAction() { return confirmAction; },
+    get statusTabs() { return statusTabs; },
+    get filteredOrders() { return filteredOrders; },
+    get pagedOrders() { return pagedOrders; },
     handleStatusTabClick,
     handleSearchChange,
     handleApprove,

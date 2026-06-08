@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends import('$lib/types').OrderBase">
-  import type { OrderBase, OrderListConfig, OrderStatus } from '$lib/types';
+  import type { OrderBase, OrderListConfig } from '$lib/types';
+  import type { OrderListState } from '$lib/composables/useOrderList.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
   import SearchBar from '$lib/components/SearchBar.svelte';
   import StatusBadge from '$lib/components/StatusBadge.svelte';
@@ -9,31 +10,9 @@
   import { Plus, Check, Eye } from 'lucide-svelte';
   import type { Snippet } from 'svelte';
 
-  interface UseOrderListReturn {
-    searchQuery: string;
-    statusFilter: OrderStatus | '';
-    currentPage: number;
-    PAGE_SIZE: number;
-    showCreateModal: boolean;
-    confirmDialog: boolean;
-    confirmAction: { id: number; action: 'approve' | 'complete' } | null;
-    statusTabs: Array<{ value: string; label: string }>;
-    filteredOrders: T[];
-    pagedOrders: T[];
-    handleStatusTabClick: (value: OrderStatus | '') => void;
-    handleSearchChange: () => void;
-    handleApprove: (id: number) => void;
-    handleComplete: (id: number) => void;
-    handleConfirm: () => void;
-    handleCancel: () => void;
-    handleViewDetail: (id: number) => void;
-    openCreateModal: () => void;
-    closeCreateModal: () => void;
-  }
-
   interface Props {
     config: OrderListConfig<T>;
-    state: UseOrderListReturn;
+    state: OrderListState<T>;
     completeIcon?: Snippet;
     createModal?: Snippet;
     extraRowContent?: Snippet<[T]>;
@@ -71,7 +50,7 @@
       {/each}
     </div>
     <div class="w-full sm:w-64">
-      <SearchBar value={state.searchQuery} placeholder={config.searchPlaceholder} oninput={(e: Event) => { state.searchQuery = (e.target as HTMLInputElement).value; state.handleSearchChange(); }} />
+      <SearchBar value={state.searchQuery} placeholder={config.searchPlaceholder} onchange={(value: string) => { state.searchQuery = value; state.handleSearchChange(); }} />
     </div>
   </div>
 
