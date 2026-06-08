@@ -117,6 +117,7 @@
               <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">最低库存</th>
               <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">单位</th>
               <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">状态</th>
+              <th class="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -136,6 +137,15 @@
                   {:else}
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">正常</span>
                   {/if}
+                </td>
+                <td class="px-4 py-3 text-sm text-right">
+                  <button
+                    onclick={() => goto(`/inventory/${product.id}`)}
+                    class="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+                    title="查看详情"
+                  >
+                    <Eye class="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             {/each}

@@ -116,6 +116,23 @@ class ProductStore {
     return this.getUrgentAlerts().length;
   }
 
+  getProductAlertDetails(productId: number): ProductAlert | null {
+    const product = this.getById(productId);
+    if (!product) return null;
+
+    const now = new Date();
+    const daysBelowMin = daysBetween(product.belowMinSince, now);
+    const daysSinceReplenishment = daysBetween(product.lastReplenishmentAt, now);
+    const hasRecentReplenishment = product.lastReplenishmentAt !== null && daysSinceReplenishment <= REPLENISHMENT_CHECK_DAYS;
+
+    return {
+      ...product,
+      daysBelowMin,
+      urgency: product.stock <= product.minStock ? getUrgency(daysBelowMin, hasRecentReplenishment) : 'normal',
+      hasRecentReplenishment
+    };
+  }
+
   search(query: string): Product[] {
     const q = query.toLowerCase();
     return this.items.filter(p =>
