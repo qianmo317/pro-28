@@ -121,21 +121,19 @@
       {/if}
 
       <div class="space-y-4">
-        {#if !extraHeader}
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">{config.partyLabel}</label>
-            <select
-              value={partyId}
-              onchange={(e) => handlePartyChangeInternal(Number((e.target as HTMLSelectElement).value))}
-              class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value={0}>{config.partyPlaceholder}</option>
-              {#each config.getPartyOptions() as option}
-                <option value={option.id}>{option.label}</option>
-              {/each}
-            </select>
-          </div>
-        {/if}
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">{config.partyLabel}</label>
+          <select
+            value={partyId}
+            onchange={(e) => handlePartyChangeInternal(Number((e.target as HTMLSelectElement).value))}
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value={0}>{config.partyPlaceholder}</option>
+            {#each config.getPartyOptions() as option}
+              <option value={option.id}>{option.label}</option>
+            {/each}
+          </select>
+        </div>
 
         <div>
           <div class="flex items-center justify-between mb-2">
