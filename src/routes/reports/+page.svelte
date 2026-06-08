@@ -7,14 +7,57 @@
   import StatCard from '$lib/components/StatCard.svelte';
   import ChartWrapper from '$lib/components/ChartWrapper.svelte';
   import { formatCurrency, formatNumber } from '$lib/utils/format';
-  import { getCustomerLevelLabel, getCustomerLevelColor, CUSTOMER_LEVEL_CONFIGS } from '$lib/utils/helpers';
-  import { BarChart3, TrendingUp, ShoppingCart, Package, Percent, Users } from 'lucide-svelte';
+  import {
+    getCustomerLevelLabel,
+    getCustomerLevelColor,
+    CUSTOMER_LEVEL_CONFIGS,
+    getMonthRange,
+    getQuarterRange,
+    getYearRange,
+    isDateInRange,
+    formatDateForInput,
+    type DateRangePreset,
+    type DateRange
+  } from '$lib/utils/helpers';
+  import { BarChart3, TrendingUp, ShoppingCart, Package, Percent, Users, Calendar } from 'lucide-svelte';
   import type { CustomerLevel } from '$lib/types';
 
   let activeTab = $state<'sales' | 'purchase' | 'inventory' | 'profit' | 'customerLevel'>('sales');
+  let datePreset = $state<DateRangePreset>('month');
+  let customStartDate = $state(formatDateForInput(getMonthRange().start));
+  let customEndDate = $state(formatDateForInput(getMonthRange().end));
 
-  const completedSales = $derived(salesOrderStore.items.filter(o => o.status === 'completed'));
-  const completedPurchases = $derived(purchaseOrderStore.items.filter(o => o.status === 'completed'));
+  const currentDateRange = $derived.by((): DateRange => {
+    switch (datePreset) {
+      case 'month':
+        return getMonthRange();
+      case 'quarter':
+        return getQuarterRange();
+      case 'year':
+        return getYearRange();
+      case 'custom':
+        return {
+          start: new Date(customStartDate).toISOString(),
+          end: new Date(customEndDate + 'T23:59:59.999').toISOString()
+        };
+      default:
+        return getMonthRange();
+    }
+  });
+
+  const datePresets = [
+    { value: 'month' as const, label: '本月' },
+    { value: 'quarter' as const, label: '本季度' },
+    { value: 'year' as const, label: '本年度' },
+    { value: 'custom' as const, label: '自定义' }
+  ];
+
+  const completedSales = $derived(salesOrderStore.items.filter(
+    o => o.status === 'completed' && isDateInRange(o.createdAt, currentDateRange)
+  ));
+  const completedPurchases = $derived(purchaseOrderStore.items.filter(
+    o => o.status === 'completed' && isDateInRange(o.createdAt, currentDateRange)
+  ));
 
   const totalSales = $derived(completedSales.reduce((s, o) => s + o.totalAmount, 0));
   const totalPurchase = $derived(completedPurchases.reduce((s, o) => s + o.totalAmount, 0));
@@ -165,6 +208,45 @@
 <PageHeader title="报表分析" subtitle="数据分析与报表" />
 
 <div class="space-y-6">
+  <div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="flex items-center gap-2 text-slate-700">
+        <Calendar class="w-5 h-5" />
+        <span class="font-medium">时间范围</span>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        {#each datePresets as preset}
+          <button
+            onclick={() => datePreset = preset.value}
+            class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {datePreset === preset.value ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+          >
+            {preset.label}
+          </button>
+        {/each}
+      </div>
+      {#if datePreset === 'custom'}
+        <div class="flex items-center gap-2 ml-2">
+          <input
+            type="date"
+            bind:value={customStartDate}
+            max={customEndDate}
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
+          <span class="text-slate-500">至</span>
+          <input
+            type="date"
+            bind:value={customEndDate}
+            min={customStartDate}
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
+        </div>
+      {/if}
+      <div class="ml-auto text-sm text-slate-500">
+        {formatDateForInput(currentDateRange.start)} 至 {formatDateForInput(currentDateRange.end)}
+      </div>
+    </div>
+  </div>
+
   <div class="flex gap-2 flex-wrap">
     {#each tabs as tab}
       <button

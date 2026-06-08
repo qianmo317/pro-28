@@ -88,3 +88,54 @@ export function getOrderTypeLabel(type: string): string {
   };
   return map[type] || type;
 }
+
+export type DateRangePreset = 'month' | 'quarter' | 'year' | 'custom';
+
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+export function getMonthRange(date: Date = new Date()): DateRange {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  return {
+    start: start.toISOString(),
+    end: end.toISOString()
+  };
+}
+
+export function getQuarterRange(date: Date = new Date()): DateRange {
+  const year = date.getFullYear();
+  const quarter = Math.floor(date.getMonth() / 3);
+  const start = new Date(year, quarter * 3, 1);
+  const end = new Date(year, quarter * 3 + 3, 0, 23, 59, 59, 999);
+  return {
+    start: start.toISOString(),
+    end: end.toISOString()
+  };
+}
+
+export function getYearRange(date: Date = new Date()): DateRange {
+  const year = date.getFullYear();
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31, 23, 59, 59, 999);
+  return {
+    start: start.toISOString(),
+    end: end.toISOString()
+  };
+}
+
+export function isDateInRange(dateStr: string, range: DateRange): boolean {
+  const date = new Date(dateStr);
+  const start = new Date(range.start);
+  const end = new Date(range.end);
+  return date >= start && date <= end;
+}
+
+export function formatDateForInput(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toISOString().split('T')[0];
+}
