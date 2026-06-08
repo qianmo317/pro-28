@@ -233,3 +233,63 @@ export interface ToastMessage {
   type: 'success' | 'error' | 'warning' | 'info';
   message: string;
 }
+
+export interface OrderItemDraft {
+  productId: number;
+  quantity: number;
+  price: number;
+}
+
+export interface OrderBase {
+  id: number;
+  orderNo: string;
+  status: OrderStatus;
+  items: OrderItem[];
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderStore<T extends OrderBase> {
+  items: T[];
+  getById(id: number): T | undefined;
+  search(query: string, status?: OrderStatus): T[];
+  updateStatus(id: number, status: OrderStatus): void;
+}
+
+export interface OrderListConfig<T extends OrderBase> {
+  pageTitle: string;
+  pageSubtitle: string;
+  createButtonText: string;
+  searchPlaceholder: string;
+  emptyText: string;
+  approveText: string;
+  completeText: string;
+  approveConfirmTitle: string;
+  approveConfirmMessage: string;
+  completeConfirmTitle: string;
+  completeConfirmMessage: string;
+  approveSuccessMessage: string;
+  completeSuccessMessage: string;
+  detailRoutePrefix: string;
+  columns: Array<{
+    key: keyof T | string;
+    label: string;
+    class?: string;
+    render?: (order: T) => string | number;
+    renderHtml?: (order: T) => string;
+  }>;
+}
+
+export interface OrderCreateConfig<T extends OrderBase> {
+  modalTitle: string;
+  partyLabel: string;
+  partyPlaceholder: string;
+  getDefaultPrice: (productId: number) => number;
+  getPartyOptions: () => Array<{ id: number; label: string }>;
+  validateParty: (partyId: number) => string | null;
+  createOrder: (data: { partyId: number; items: OrderItem[] }) => void;
+  successMessage: string;
+  extraHeaderSnippet?: import('svelte').Snippet;
+  extraFooterSnippet?: import('svelte').Snippet<[{ total: number }]>;
+}

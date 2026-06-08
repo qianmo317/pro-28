@@ -3,310 +3,208 @@
   import { customerStore } from '$lib/stores/customers.svelte';
   import { productStore } from '$lib/stores/products.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
-  import SearchBar from '$lib/components/SearchBar.svelte';
-  import StatusBadge from '$lib/components/StatusBadge.svelte';
-  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-  import Pagination from '$lib/components/Pagination.svelte';
-  import { formatCurrency, formatDateTime } from '$lib/utils/format';
+  import { useOrderList } from '$lib/composables/useOrderList';
+  import { OrderListBase, OrderCreateModal } from '$lib/components/order';
+  import { formatCurrency } from '$lib/utils/format';
   import { getCustomerLevelLabel, getCustomerLevelColor } from '$lib/utils/helpers';
-  import { Plus, Check, Truck, Eye, Tag } from 'lucide-svelte';
-  import type { OrderStatus, OrderItem } from '$lib/types';
-  import { goto } from '$app/navigation';
+  import { Truck, Tag } from 'lucide-svelte';
+  import type { SalesOrder, OrderListConfig, OrderCreateConfig, OrderItem, OrderItemDraft, Product } from '$lib/types';
 
-  let searchQuery = $state('');
-  let statusFilter = $state<OrderStatus | ''>('');
-  let showCreateModal = $state(false);
-  let confirmDialog = $state(false);
-  let confirmAction = $state<{ id: number; action: string } | null>(null);
+  let selectedCustomerId = $state(0);
+  const selectedCustomer = $derived(customerStore.getById(selectedCustomerId));
+  const discountRate = $derived(selectedCustomer ? customerStore.getDiscountRate(selectedCustomerId) : 1);
 
-  let newCustomerId = $state(0);
-  let newItems = $state<Array<{ productId: number; quantity: number; price: number }>>([{ productId: 0, quantity: 1, price: 0 }]);
-  let currentPage = $state(1);
-  const PAGE_SIZE = 10;
+  const listConfig: OrderListConfig<SalesOrder> = {
+    pageTitle: '销售管理',
+    pageSubtitle: '管理销售订单，跟踪销售出库',
+    createButtonText: '新建销售单',
+    searchPlaceholder: '搜索订单号/客户...',
+    emptyText: '暂无销售订单',
+    approveText: '审核',
+    completeText: '出库',
+    approveConfirmTitle: '审核销售单',
+    approveConfirmMessage: '确定审核此销售单？',
+    completeConfirmTitle: '确认出库',
+    completeConfirmMessage: '确定将此销售单标记为已出库？库存将自动扣减。',
+    approveSuccessMessage: '销售单已审核',
+    completeSuccessMessage: '销售单已出库',
+    detailRoutePrefix: '/sales',
+    columns: [
+      { key: 'orderNo', label: '订单号' },
+      { key: 'customerName', label: '客户' },
+      {
+        key: 'customerLevel',
+        label: '客户等级',
+        renderHtml: (order) => {
+          const color = getCustomerLevelColor(order.customerLevel);
+          const label = getCustomerLevelLabel(order.customerLevel);
+          return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: ${color}20; color: ${color}"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>${label}</span>`;
+        }
+      },
+      {
+        key: 'originalAmount',
+        label: '原价',
+        class: 'text-slate-500 line-through',
+        render: (order) => formatCurrency(order.originalAmount)
+      },
+      {
+        key: 'discountRate',
+        label: '折扣',
+        class: 'text-emerald-600 font-medium',
+        render: (order) => `${Math.round(order.discountRate * 100)}折`
+      },
+      {
+        key: 'totalAmount',
+        label: '实付金额',
+        class: 'font-semibold text-slate-800',
+        render: (order) => formatCurrency(order.totalAmount)
+      },
+      { key: 'status', label: '状态' },
+      { key: 'createdAt', label: '创建时间' }
+    ]
+  };
 
-  const filteredOrders = $derived(salesOrderStore.search(searchQuery, statusFilter || undefined));
-  const pagedOrders = $derived(filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE));
+  const listState = useOrderList(salesOrderStore, listConfig);
 
-  const selectedCustomer = $derived(customerStore.getById(newCustomerId));
-  const discountRate = $derived(selectedCustomer ? customerStore.getDiscountRate(newCustomerId) : 1);
-  const originalTotal = $derived(newItems.reduce((s, i) => s + i.quantity * i.price, 0));
-  const discountedTotal = $derived(Math.round(originalTotal * discountRate * 100) / 100);
-  const discountAmount = $derived(Math.round((originalTotal - discountedTotal) * 100) / 100);
+  const createConfig: OrderCreateConfig<SalesOrder> = {
+    modalTitle: '新建销售单',
+    partyLabel: '客户',
+    partyPlaceholder: '请选择客户',
+    getDefaultPrice: (productId: number) => productStore.getById(productId)?.price || 0,
+    getPartyOptions: () => customerStore.items.filter(c => c.status === 'active').map(c => ({
+      id: c.id,
+      label: `${c.name} (${getCustomerLevelLabel(c.level)} · ${Math.round(customerStore.getDiscountRate(c.id) * 100)}折)`
+    })),
+    validateParty: (partyId: number) => partyId ? null : '请选择客户',
+    createOrder: (data: { partyId: number; items: OrderItem[] }) => {
+      const customer = customerStore.getById(data.partyId)!;
+      salesOrderStore.add({
+        customerId: data.partyId,
+        customerName: customer.name,
+        status: 'pending',
+        items: data.items
+      });
+    },
+    successMessage: '销售单创建成功'
+  };
 
-  const statusTabs = [
-    { value: '', label: '全部' },
-    { value: 'pending', label: '待审核' },
-    { value: 'approved', label: '已审核' },
-    { value: 'completed', label: '已完成' },
-    { value: 'cancelled', label: '已取消' }
-  ];
-
-  function handleApprove(id: number) {
-    confirmAction = { id, action: 'approve' };
-    confirmDialog = true;
+  function handlePartyChange(partyId: number) {
+    selectedCustomerId = partyId;
   }
 
-  function handleComplete(id: number) {
-    confirmAction = { id, action: 'complete' };
-    confirmDialog = true;
+  function handleCloseModal() {
+    listState.closeCreateModal();
+    selectedCustomerId = 0;
   }
 
-  function handleConfirm() {
-    if (!confirmAction) return;
-    if (confirmAction.action === 'approve') {
-      salesOrderStore.updateStatus(confirmAction.id, 'approved');
-      toastStore.success('销售单已审核');
-    } else if (confirmAction.action === 'complete') {
-      salesOrderStore.updateStatus(confirmAction.id, 'completed');
-      toastStore.success('销售单已出库');
-    }
-  }
-
-  function addNewItem() {
-    newItems = [...newItems, { productId: 0, quantity: 1, price: 0 }];
-  }
-
-  function removeNewItem(index: number) {
-    newItems = newItems.filter((_, i) => i !== index);
-  }
-
-  function updateNewItem(index: number, field: string, value: number) {
-    newItems = newItems.map((item, i) => i === index ? { ...item, [field]: value } : item);
-  }
-
-  function handleProductChange(index: number, productId: number) {
-    const product = productStore.getById(productId);
-    if (product) {
-      newItems = newItems.map((item, i) =>
-        i === index ? { ...item, productId, price: product.price } : item
-      );
-    }
-  }
-
-  function handleCreateOrder() {
-    if (!newCustomerId) {
-      toastStore.error('请选择客户');
+  function handleCreate(data: { partyId: number; items: OrderItem[] }) {
+    const partyError = createConfig.validateParty(data.partyId);
+    if (partyError) {
+      toastStore.error(partyError);
       return;
     }
-    const items = newItems
-      .filter(i => i.productId > 0 && i.quantity > 0)
-      .map((item) => {
-        const product = productStore.getById(item.productId)!;
-        return {
-          productId: item.productId,
-          productName: product.name,
-          quantity: item.quantity,
-          price: item.price,
-          amount: item.quantity * item.price
-        };
-      });
-    if (items.length === 0) {
+    if (data.items.length === 0) {
       toastStore.error('请添加至少一个商品');
       return;
     }
-    const customer = customerStore.getById(newCustomerId)!;
-    salesOrderStore.add({
-      customerId: newCustomerId,
-      customerName: customer.name,
-      status: 'pending',
-      items
-    });
-    showCreateModal = false;
-    newCustomerId = 0;
-    newItems = [{ productId: 0, quantity: 1, price: 0 }];
-    toastStore.success('销售单创建成功');
+    createConfig.createOrder(data);
+    toastStore.success(createConfig.successMessage);
+    handleCloseModal();
   }
 </script>
 
-<svelte:head>
-  <title>销售管理 - 进销存管理系统</title>
-</svelte:head>
-
-<PageHeader title="销售管理" subtitle="管理销售订单，跟踪销售出库">
-  {#snippet actions()}
-    <button
-      onclick={() => showCreateModal = true}
-      class="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
-    >
-      <Plus class="w-4 h-4" />
-      新建销售单
-    </button>
+<OrderListBase config={listConfig} state={listState}>
+  {#snippet completeIcon()}
+    <Truck class="w-4 h-4" />
   {/snippet}
-</PageHeader>
 
-<div class="space-y-4">
-  <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-    <div class="flex gap-2 flex-wrap">
-      {#each statusTabs as tab}
-        <button
-          onclick={() => { currentPage = 1; statusFilter = tab.value as OrderStatus | ''; }}
-          class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {statusFilter === tab.value ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}"
-        >
-          {tab.label}
-        </button>
-      {/each}
-    </div>
-    <div class="w-full sm:w-64">
-      <SearchBar bind:value={searchQuery} placeholder="搜索订单号/客户..." onchange={() => currentPage = 1} />
-    </div>
-  </div>
+  {#snippet createModal()}
+    <OrderCreateModal
+      config={createConfig}
+      onclose={handleCloseModal}
+      initialPartyId={selectedCustomerId}
+      onPartyChange={handlePartyChange}
+      onCreate={handleCreate}
+    >
+      {#snippet productOption({ product }: { product: Product })}
+        {product.name} (库存: {product.stock})
+      {/snippet}
 
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full">
-        <thead>
-          <tr class="bg-slate-50 border-b border-slate-200">
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">订单号</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">客户</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">客户等级</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">原价</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">折扣</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">实付金额</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">状态</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3">创建时间</th>
-            <th class="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-4 py-3 w-32">操作</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {#if filteredOrders.length === 0}
-            <tr><td colspan="9" class="text-center py-12 text-slate-400 text-sm">暂无销售订单</td></tr>
-          {:else}
-            {#each pagedOrders as order (order.id)}
-              <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3 text-sm font-medium text-brand-600">{order.orderNo}</td>
-                <td class="px-4 py-3 text-sm text-slate-700">{order.customerName}</td>
-                <td class="px-4 py-3 text-sm">
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style="background-color: {getCustomerLevelColor(order.customerLevel)}20; color: {getCustomerLevelColor(order.customerLevel)}">
-                    <Tag class="w-3 h-3" />
-                    {getCustomerLevelLabel(order.customerLevel)}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-sm text-slate-500 line-through">{formatCurrency(order.originalAmount)}</td>
-                <td class="px-4 py-3 text-sm text-emerald-600 font-medium">{Math.round(order.discountRate * 100)}折</td>
-                <td class="px-4 py-3 text-sm font-semibold text-slate-800">{formatCurrency(order.totalAmount)}</td>
-                <td class="px-4 py-3 text-sm"><StatusBadge status={order.status} /></td>
-                <td class="px-4 py-3 text-sm text-slate-500">{formatDateTime(order.createdAt)}</td>
-                <td class="px-4 py-3 text-sm">
-                  <div class="flex items-center gap-2">
-                    {#if order.status === 'pending'}
-                      <button onclick={() => handleApprove(order.id)} class="text-brand-600 hover:text-brand-700" title="审核"><Check class="w-4 h-4" /></button>
-                    {/if}
-                    {#if order.status === 'approved'}
-                      <button onclick={() => handleComplete(order.id)} class="text-emerald-600 hover:text-emerald-700" title="出库"><Truck class="w-4 h-4" /></button>
-                    {/if}
-                    <button onclick={() => goto(`/sales/${order.id}`)} class="text-slate-400 hover:text-slate-600" title="详情"><Eye class="w-4 h-4" /></button>
-                  </div>
-                </td>
-              </tr>
+      {#snippet extraHeader()}
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-700 mb-1">{createConfig.partyLabel}</label>
+          <select
+            value={selectedCustomerId}
+            onchange={(e) => {
+              const val = Number((e.target as HTMLSelectElement).value);
+              selectedCustomerId = val;
+              handlePartyChange(val);
+            }}
+            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value={0}>{createConfig.partyPlaceholder}</option>
+            {#each createConfig.getPartyOptions() as option}
+              <option value={option.id}>{option.label}</option>
             {/each}
-          {/if}
-        </tbody>
-      </table>
-    </div>
-    <Pagination bind:page={currentPage} total={filteredOrders.length} pageSize={PAGE_SIZE} />
-  </div>
-</div>
+          </select>
+        </div>
 
-<ConfirmDialog
-  bind:open={confirmDialog}
-  title={confirmAction?.action === 'approve' ? '审核销售单' : '确认出库'}
-  message={confirmAction?.action === 'approve' ? '确定审核此销售单？' : '确定将此销售单标记为已出库？库存将自动扣减。'}
-  onconfirm={handleConfirm}
-/>
-
-{#if showCreateModal}
-  <div class="fixed inset-0 z-50 flex items-start justify-center pt-20">
-    <div class="absolute inset-0 bg-black/50" onclick={() => showCreateModal = false}></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[70vh] overflow-y-auto">
-      <div class="p-6">
-        <h3 class="text-lg font-semibold text-slate-800 mb-4">新建销售单</h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">客户</label>
-            <select bind:value={newCustomerId} class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-              <option value={0}>请选择客户</option>
-              {#each customerStore.items.filter(c => c.status === 'active') as customer}
-                <option value={customer.id}>{customer.name} ({getCustomerLevelLabel(customer.level)} · {Math.round(customerStore.getDiscountRate(customer.id) * 100)}折)</option>
-              {/each}
-            </select>
-          </div>
-
-          {#if selectedCustomer}
-            <div class="bg-gradient-to-r from-brand-50 to-emerald-50 rounded-lg p-4 border border-brand-100">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium" style="background-color: {getCustomerLevelColor(selectedCustomer.level)}20; color: {getCustomerLevelColor(selectedCustomer.level)}">
-                    <Tag class="w-4 h-4" />
-                    {getCustomerLevelLabel(selectedCustomer.level)}会员
-                  </span>
-                  <span class="text-sm text-slate-600">历史累计消费：{formatCurrency(selectedCustomer.totalSpent)}</span>
-                </div>
-                <div class="text-right">
-                  <p class="text-xs text-slate-500">享受折扣</p>
-                  <p class="text-lg font-bold text-emerald-600">{Math.round(discountRate * 100)}折</p>
-                </div>
+        {#if selectedCustomer}
+          <div class="bg-gradient-to-r from-brand-50 to-emerald-50 rounded-lg p-4 border border-brand-100 mb-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium" style="background-color: {getCustomerLevelColor(selectedCustomer.level)}20; color: {getCustomerLevelColor(selectedCustomer.level)}">
+                  <Tag class="w-4 h-4" />
+                  {getCustomerLevelLabel(selectedCustomer.level)}会员
+                </span>
+                <span class="text-sm text-slate-600">历史累计消费：{formatCurrency(selectedCustomer.totalSpent)}</span>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-slate-500">享受折扣</p>
+                <p class="text-lg font-bold text-emerald-600">{Math.round(discountRate * 100)}折</p>
               </div>
             </div>
-          {/if}
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-sm font-medium text-slate-700">商品明细</label>
-              <button onclick={addNewItem} class="text-sm text-brand-600 hover:text-brand-700 font-medium">+ 添加商品</button>
-            </div>
-            <div class="space-y-3">
-              {#each newItems as item, i}
-                <div class="flex items-end gap-3 p-3 bg-slate-50 rounded-lg">
-                  <div class="flex-1">
-                    <label class="block text-xs text-slate-500 mb-1">商品</label>
-                    <select value={item.productId} onchange={(e) => handleProductChange(i, Number((e.target as HTMLSelectElement).value))} class="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-                      <option value={0}>选择商品</option>
-                      {#each productStore.items as product}
-                        <option value={product.id}>{product.name} (库存: {product.stock})</option>
-                      {/each}
-                    </select>
-                  </div>
-                  <div class="w-20">
-                    <label class="block text-xs text-slate-500 mb-1">数量</label>
-                    <input type="number" value={item.quantity} min="1" onchange={(e) => updateNewItem(i, 'quantity', Number((e.target as HTMLInputElement).value))} class="w-full px-2 py-1.5 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                  </div>
-                  <div class="w-24">
-                    <label class="block text-xs text-slate-500 mb-1">单价</label>
-                    <input type="number" value={item.price} min="0" step="0.01" onchange={(e) => updateNewItem(i, 'price', Number((e.target as HTMLInputElement).value))} class="w-full px-2 py-1.5 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                  </div>
-                  <div class="w-24">
-                    <label class="block text-xs text-slate-500 mb-1">小计</label>
-                    <p class="py-1.5 text-sm font-medium text-slate-700">{formatCurrency(item.quantity * item.price)}</p>
-                  </div>
-                  {#if newItems.length > 1}
-                    <button onclick={() => removeNewItem(i)} class="text-red-400 hover:text-red-600 pb-1.5">&times;</button>
-                  {/if}
-                </div>
-              {/each}
-            </div>
           </div>
-          <div class="space-y-2 pt-3 border-t border-slate-200">
+        {/if}
+      {/snippet}
+
+      {#snippet extraFooter({ total, items, partyId }: { total: number; items: OrderItemDraft[]; partyId: number })}
+        <div class="space-y-2 pt-3 border-t border-slate-200">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">商品原价：</span>
+            <span class="text-slate-700">{formatCurrency(total)}</span>
+          </div>
+          {#if selectedCustomer && discountRate < 1}
             <div class="flex justify-between text-sm">
-              <span class="text-slate-500">商品原价：</span>
-              <span class="text-slate-700">{formatCurrency(originalTotal)}</span>
+              <span class="text-slate-500">客户折扣（{Math.round(discountRate * 100)}折）：</span>
+              <span class="text-emerald-600 font-medium">-{formatCurrency(Math.round((total - total * discountRate) * 100) / 100)}</span>
             </div>
-            {#if selectedCustomer && discountRate < 1}
-              <div class="flex justify-between text-sm">
-                <span class="text-slate-500">客户折扣（{Math.round(discountRate * 100)}折）：</span>
-                <span class="text-emerald-600 font-medium">-{formatCurrency(discountAmount)}</span>
-              </div>
-            {/if}
-            <div class="flex justify-between pt-2 border-t border-slate-100">
-              <span class="font-semibold text-slate-800">实付金额：</span>
-              <span class="font-bold text-lg text-brand-600">{formatCurrency(discountedTotal)}</span>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-              <button onclick={() => showCreateModal = false} class="px-4 py-2 text-sm text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">取消</button>
-              <button onclick={handleCreateOrder} class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors">创建</button>
-            </div>
+          {/if}
+          <div class="flex justify-between pt-2 border-t border-slate-100">
+            <span class="font-semibold text-slate-800">实付金额：</span>
+            <span class="font-bold text-lg text-brand-600">{formatCurrency(Math.round(total * discountRate * 100) / 100)}</span>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button onclick={handleCloseModal} class="px-4 py-2 text-sm text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">取消</button>
+            <button onclick={() => {
+              const orderItems: OrderItem[] = items
+                .filter(i => i.productId > 0 && i.quantity > 0)
+                .map((item, idx) => {
+                  const product = productStore.getById(item.productId)!;
+                  return {
+                    id: idx + 1,
+                    productId: item.productId,
+                    productName: product.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    amount: item.quantity * item.price
+                  };
+                });
+              handleCreate({ partyId, items: orderItems });
+            }} class="px-4 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 transition-colors">创建</button>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-{/if}
+      {/snippet}
+    </OrderCreateModal>
+  {/snippet}
+</OrderListBase>
