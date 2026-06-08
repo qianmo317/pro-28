@@ -25,6 +25,29 @@ class PurchaseOrderStore {
     return newOrder;
   }
 
+  update(id: number, data: { items?: Omit<OrderItem, 'id' | 'amount'>[] }) {
+    const order = this.items.find(o => o.id === id);
+    if (!order || order.status !== 'pending') return;
+
+    if (data.items) {
+      order.items = data.items.map((item, idx) => {
+        const product = productStore.getById(item.productId)!;
+        return {
+          id: idx + 1,
+          productId: item.productId,
+          productName: product.name,
+          quantity: item.quantity,
+          price: item.price,
+          amount: item.quantity * item.price
+        };
+      });
+      order.totalAmount = order.items.reduce((sum, i) => sum + i.amount, 0);
+    }
+
+    order.updatedAt = new Date().toISOString();
+    return order;
+  }
+
   updateStatus(id: number, status: OrderStatus) {
     const order = this.items.find(o => o.id === id);
     if (!order) return;
