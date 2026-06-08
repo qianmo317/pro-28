@@ -2,7 +2,7 @@
   import { purchaseOrderStore } from '$lib/stores/purchaseOrders.svelte';
   import { supplierStore } from '$lib/stores/suppliers.svelte';
   import { productStore } from '$lib/stores/products.svelte';
-  import { useOrderList } from '$lib/composables/useOrderList';
+  import { useOrderList } from '$lib/composables/useOrderList.svelte';
   import { OrderListBase, OrderCreateModal } from '$lib/components/order';
   import { formatCurrency } from '$lib/utils/format';
   import { PackageCheck, AlertTriangle } from 'lucide-svelte';

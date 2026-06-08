@@ -3,7 +3,7 @@
   import { customerStore } from '$lib/stores/customers.svelte';
   import { productStore } from '$lib/stores/products.svelte';
   import { toastStore } from '$lib/stores/toast.svelte';
-  import { useOrderList } from '$lib/composables/useOrderList';
+  import { useOrderList } from '$lib/composables/useOrderList.svelte';
   import { OrderListBase, OrderCreateModal } from '$lib/components/order';
   import { formatCurrency } from '$lib/utils/format';
   import { getCustomerLevelLabel, getCustomerLevelColor } from '$lib/utils/helpers';

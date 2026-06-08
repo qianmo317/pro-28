@@ -71,7 +71,7 @@
       {/each}
     </div>
     <div class="w-full sm:w-64">
-      <SearchBar bind:value={state.searchQuery} placeholder={config.searchPlaceholder} onchange={state.handleSearchChange} />
+      <SearchBar value={state.searchQuery} placeholder={config.searchPlaceholder} oninput={(e: Event) => { state.searchQuery = (e.target as HTMLInputElement).value; state.handleSearchChange(); }} />
     </div>
   </div>
 
@@ -143,16 +143,16 @@
         </tbody>
       </table>
     </div>
-    <Pagination bind:page={state.currentPage} total={state.filteredOrders.length} pageSize={state.PAGE_SIZE} />
+    <Pagination page={state.currentPage} total={state.filteredOrders.length} pageSize={state.PAGE_SIZE} onchange={(p: number) => state.currentPage = p} />
   </div>
 </div>
 
 <ConfirmDialog
-  bind:open={state.confirmDialog}
+  open={state.confirmDialog}
   title={state.confirmAction?.action === 'approve' ? config.approveConfirmTitle : config.completeConfirmTitle}
   message={state.confirmAction?.action === 'approve' ? config.approveConfirmMessage : config.completeConfirmMessage}
-  onconfirm={state.handleConfirm}
-  oncancel={state.handleCancel}
+  onconfirm={() => { state.confirmDialog = false; state.handleConfirm(); }}
+  oncancel={() => { state.confirmDialog = false; state.handleCancel(); }}
 />
 
 {#if state.showCreateModal && createModal}
